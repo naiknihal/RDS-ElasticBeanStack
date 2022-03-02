@@ -1,55 +1,120 @@
-<?
-if ($_SERVER['REQUEST_METHOD'] === 'POST')
-{
-  $file = '/tmp/sample-app.log';
-  $message = file_get_contents('php://input');
-  file_put_contents($file, date('Y-m-d H:i:s') . " Received message: " . $message . "\n", FILE_APPEND);
-}
-else
-{
-?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <title>UPDATED</title>
-    <meta name="viewport" content="width=device-width">
-    <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Lobster+Two" type="text/css">
-    <link rel="icon" href="https://awsmedia.s3.amazonaws.com/favicon.ico" type="image/ico" >
-    <link rel="shortcut icon" href="https://awsmedia.s3.amazonaws.com/favicon.ico" type="image/ico" >
-    <!--[if IE]><script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
-    <link rel="stylesheet" href="/styles.css" type="text/css">
-</head>
+<?php include "../inc/dbinfo.inc"; ?>
+<html>
 <body>
-    <section class="congratulations">
-        <h1>UPDATED HELLOWORLD</h1>
-        <p>Your AWS Elastic Beanstalk <em>PHP</em> application is now running on your own dedicated environment in the AWS&nbsp;Cloud</p>
-        <p>You are running PHP version <?= phpversion() ?></p>
-        <p>This environment is launched with Elastic Beanstalk PHP Platform</p>
-    </section>
+<h1>Sample page</h1>
+<?php
+  
+  if ($_SERVER['REQUEST_METHOD'] === 'POST')
+  {
+    $file = '/tmp/sample-app.log';
+    $message = file_get_contents('php://input');
+    file_put_contents($file, date('Y-m-d H:i:s') . " Received message: " . $message . "\n", FILE_APPEND);
+  }
+  else
+  {
+?>
+<?php
+  /* Connect to MySQL and select the database. */
+  $connection = mysqli_connect(DB_SERVER, DB_USERNAME, DB_PASSWORD);
 
-    <section class="instructions">
-        <h2>What's Next?</h2>
-        <ul>
-            <li><a href="http://docs.amazonwebservices.com/elasticbeanstalk/latest/dg/">AWS Elastic Beanstalk overview</a></li>
-            <li><a href="http://docs.amazonwebservices.com/elasticbeanstalk/latest/dg/create_deploy_PHP_eb.html">Deploying AWS Elastic Beanstalk Applications in PHP Using Eb and Git</a></li>
-            <li><a href="http://docs.amazonwebservices.com/elasticbeanstalk/latest/dg/create_deploy_PHP.rds.html">Using Amazon RDS with PHP</a>
-            <li><a href="http://docs.amazonwebservices.com/elasticbeanstalk/latest/dg/customize-containers-ec2.html">Customizing the Software on EC2 Instances</a></li>
-            <li><a href="http://docs.amazonwebservices.com/elasticbeanstalk/latest/dg/customize-containers-resources.html">Customizing Environment Resources</a></li>
-        </ul>
+  if (mysqli_connect_errno()) echo "Failed to connect to MySQL: " . mysqli_connect_error();
 
-        <h2>AWS SDK for PHP</h2>
-        <ul>
-            <li><a href="http://aws.amazon.com/sdkforphp">AWS SDK for PHP home</a></li>
-            <li><a href="http://aws.amazon.com/php">PHP developer center</a></li>
-            <li><a href="https://github.com/aws/aws-sdk-php">AWS SDK for PHP on GitHub</a></li>
-        </ul>
-    </section>
+  $database = mysqli_select_db($connection, DB_DATABASE);
 
-    <!--[if lt IE 9]><script src="http://css3-mediaqueries-js.googlecode.com/svn/trunk/css3-mediaqueries.js"></script><![endif]-->
+  /* Ensure that the EMPLOYEES table exists. */
+  Verifytype($connection, DB_DATABASE);
+
+  /* If input fields are populated, add a row to the EMPLOYEES table. */
+  $type = htmlentities($_POST['type']);
+
+  if (strlen($type) {
+    Addtype($connection, $type);
+  }
+?>
+
+<!-- Input form -->
+<form action="<?PHP echo $_SERVER['SCRIPT_NAME'] ?>" method="POST">
+  <table border="0">
+    <tr>
+      <td>TYPE</td>
+    </tr>
+    <tr>
+      <td>
+        <input type="text" name="TYPE" maxlength="45" size="30" />
+      </td>
+      <td>
+        <input type="submit" value="Add Message" />
+      </td>
+    </tr>
+  </table>
+</form>
+
+<!-- Display table data. -->
+<table border="1" cellpadding="2" cellspacing="2">
+  <tr>
+    <td>TYPE</td>
+  </tr>
+
+<?php
+
+$result = mysqli_query($connection, "SELECT * FROM type");
+
+while($query_data = mysqli_fetch_row($result)) {
+  echo "<tr>";
+  echo "<td>",$query_data[0], "</td>",
+       "<td>",$query_data[1], "</td>",
+  echo "</tr>";
+}
+?>
+
+</table>
+
+<!-- Clean up. -->
+<?php
+
+  mysqli_free_result($result);
+  mysqli_close($connection);
+
+?>
+
 </body>
 </html>
-<? 
-} 
-?>
+
+
+<?php
+
+/* Add an employee to the table. */
+function AddEmployee($connection, $type) {
+   $n = mysqli_real_escape_string($connection, $type);
+
+   $query = "INSERT INTO type (type) VALUES ('$n');";
+
+   if(!mysqli_query($connection, $query)) echo("<p>Error adding data.</p>");
+}
+
+/* Check whether the table exists and, if not, create it. */
+function Verifytype($connection, $dbName) {
+  if(!TableExists("type", $connection, $dbName))
+  {
+     $query = "CREATE TABLE type (
+         ID int(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+         type VARCHAR(90),
+       )";
+
+     if(!mysqli_query($connection, $query)) echo("<p>Error creating table.</p>");
+  }
+}
+
+/* Check for the existence of a table. */
+function TableExists($tableName, $connection, $dbName) {
+  $t = mysqli_real_escape_string($connection, $tableName);
+  $d = mysqli_real_escape_string($connection, $dbName);
+
+  $checktable = mysqli_query($connection,
+      "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_NAME = '$t' AND TABLE_SCHEMA = '$d'");
+
+  if(mysqli_num_rows($checktable) > 0) return true;
+
+  return false;
+}
+?>                        
